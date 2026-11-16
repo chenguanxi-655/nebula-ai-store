@@ -1,4 +1,5 @@
 // Cloudflare Worker — private image generation beta
+// Git-connected deployment: nebula-ai-api (main branch).
 // Configure OPENAI_API_KEY and STUDIO_ACCESS_CODE as encrypted Worker secrets.
 // Never place secrets in GitHub Pages, client JavaScript, or wrangler.toml.
 const SITE = "https://chenguanxi-655.github.io";
