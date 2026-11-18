@@ -1,0 +1,8 @@
+{
+  "appId": "com.nebulaai.studio",
+  "appName": "星云 AI",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}

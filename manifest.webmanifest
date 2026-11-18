@@ -1,0 +1,19 @@
+{
+  "name": "星云 AI Studio",
+  "short_name": "星云AI",
+  "description": "星云 AI 创作工具",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#17112d",
+  "icons": [
+    {
+      "src": "./assets/nebula-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
