@@ -1,147 +1,233 @@
-# 星云 AI · 部署指南（国内零成本版）
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>星云 AI · AI 图片生成（免费）</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="./assets/nebula-icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="星云AI">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b1020;color:#f5f3ff;font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:760px;margin:auto;padding:22px 16px 80px}
+a{color:#c9b9ff}
+h1{font-size:clamp(26px,7vw,34px);margin:22px 0 6px;letter-spacing:-.5px}
+.muted{color:#a8aecb;font-size:14px;line-height:1.7}
+.card{background:#161c31;border:1px solid #333e5c;border-radius:18px;padding:18px;margin:16px 0}
+label{display:block;margin:14px 0 7px;font-weight:650;font-size:14px}
+input,textarea,select{font:inherit;width:100%;padding:12px;border:1px solid #556080;border-radius:11px;background:#0e1528;color:#fff}
+textarea{min-height:110px;resize:vertical}
+button{font:inherit;border:0;border-radius:12px;padding:13px 18px;font-weight:800;cursor:pointer}
+button:disabled{opacity:.55;cursor:not-allowed}
+.primary{background:linear-gradient(115deg,#7ae6f8,#a5a2ff);color:#081426;width:100%;font-size:16px;margin-top:18px}
+.ghost{background:#242f47;color:#cfdcf5;font-size:13px;padding:10px 14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+hint{display:block;color:#8f9bb8;font-size:12px;line-height:1.6;margin-top:6px}
+#status{min-height:24px;margin-top:14px;font-size:14px;line-height:1.6}
+#status.ok{color:#8ff0d6}
+#status.err{color:#ffb3be}
+#result{margin-top:16px}
+#result img{width:100%;border-radius:14px;display:block}
+#save{display:none;margin-top:12px;background:#243b57;color:#bfe9ff;width:100%}
+.badge{display:inline-block;font-size:11px;padding:5px 9px;border-radius:99px;background:#1c3d38;color:#8ff0d6;margin-left:6px}
+.badge.warn{background:#3a3021;color:#ffda9d}
+details{border:1px solid #2c374f;border-radius:12px;padding:12px;background:#111829;margin-top:14px;font-size:13px}
+summary{cursor:pointer;color:#9fd9f5;font-weight:700}
+details p{color:#96a3bd;line-height:1.7}
+</style>
+</head>
+<body>
+<main>
+  <a href="./index.html">← 返回星云 AI</a>
+  <h1>🎨 AI 图片生成</h1>
+  <p class="muted">输入中文描述，几秒到几十秒生成一张图。使用智谱 CogView 免费档模型，无需充值、无需信用卡。</p>
 
-> 目标：让网页能真正生成图片，全程 0 元、不要信用卡、国内直连。
-> 结构变了：以前是「GitHub Pages 前端 + Cloudflare Worker 后端」，现在后端搬到**阿里云函数计算 FC**。
-> 原因：`*.workers.dev` 在国内网络被拦，浏览器根本连不上（`ERR_CONNECTION_TIMED_OUT`）。
+  <div class="card">
+    <label for="endpoint">后端地址 <span class="badge warn">需要填一次</span></label>
+    <input id="endpoint" type="url" placeholder="粘贴你的函数公网地址，例如 https://xxx.fcapp.run" autocomplete="off" spellcheck="false">
+    <hint>这串地址不是密码，只保存在你这台设备的浏览器里。换设备需要重填。</hint>
+    <div class="row">
+      <button class="ghost" id="check">🔍 测试连接</button>
+      <button class="ghost" id="forget">忘记地址</button>
+    </div>
+  </div>
 
----
+  <div class="card">
+    <label for="access">访问码</label>
+    <input id="access" type="password" placeholder="你在服务器里设置的 STUDIO_ACCESS_CODE" autocomplete="off">
+    <hint>访问码只在本页使用，不保存到浏览器存储；公共电脑上用完请刷新页面。</hint>
 
-## 第 0 步：准备（一次性）
+    <label for="prompt">图片描述</label>
+    <textarea id="prompt" maxlength="1000" placeholder="例如：一只穿宇航服的橘猫站在月球表面，地球在背景中，电影级光影，细节丰富"></textarea>
 
-1. 阿里云账号**实名认证**（个人，身份证 + 支付宝/微信人脸）。函数计算不开实名用不了。
-2. 智谱账号（手机号注册即可，不用实名、不用绑卡）。
+    <label for="ratio">图片比例</label>
+    <select id="ratio">
+      <option value="1:1">1:1 方形（1024×1024）</option>
+      <option value="2:3">2:3 竖版（768×1344）</option>
+      <option value="3:2">3:2 横版（1344×768）</option>
+      <option value="9:16">9:16 手机竖屏（720×1440）</option>
+      <option value="16:9">16:9 横屏（1440×720）</option>
+    </select>
 
----
+    <button class="primary" id="gen">✨ 开始生成</button>
+    <div id="status" role="status"></div>
+    <div id="result"></div>
+    <a id="save" download="星云AI图片.png">⬇️ 保存图片</a>
+  </div>
 
-## 第 1 步：拿智谱的免费 API Key（约 5 分钟）
+  <details>
+    <summary>使用限制（请先看这里，避免误会）</summary>
+    <p>· 每天每个 IP 有次数上限（默认 40 次），用完当天不可再用。</p>
+    <p>· 免费模型有排队和限流，偶尔会慢或失败，重试一次通常就好。</p>
+    <p>· 生成结果不保证符合预期，可以改描述多试几次。</p>
+    <p>· 图片只在本次页面显示，刷新就没了，<b>一定要点保存</b>。</p>
+    <p>· 不要生成违法、侵权、他人肖像或未成年人相关的不当内容。</p>
+  </details>
+</main>
 
-1. 打开 <https://open.bigmodel.cn/>
-2. 右上角「注册 / 登录」，用手机号注册
-3. 登录后进入控制台，左侧菜单找「API Keys」（有的版本叫「API 密钥」）
-4. 点「创建 API Key」，名字随便填，比如 `nebula`
-5. 复制生成的那一长串字符，**先存到手机备忘录**
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const EP_KEY = 'nebula-endpoint-v1';
+  const statusEl = $('status');
 
-> ⚠️ 这串东西等于钱。**不要发给任何人，不要贴进网页输入框，不要提交 GitHub。**
-> 只填进服务器后台的「环境变量」里。
+  function setStatus(text, kind) {
+    statusEl.textContent = text || '';
+    statusEl.className = kind || '';
+  }
+  function normalize(url) {
+    let v = (url || '').trim().replace(/\/+$/, '');
+    if (!v) return '';
+    if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+    return v;
+  }
+  function remember(url) {
+    try { localStorage.setItem(EP_KEY, url); } catch {}
+  }
+  function recall() {
+    try { return localStorage.getItem(EP_KEY) || ''; } catch { return ''; }
+  }
 
----
+  $('endpoint').value = recall();
 
-## 第 2 步：部署后端到阿里云函数计算 FC（最麻烦的一步，约 20~30 分钟）
+  $('forget').onclick = () => {
+    try { localStorage.removeItem(EP_KEY); } catch {}
+    $('endpoint').value = '';
+    setStatus('已清除本机保存的地址。');
+  };
 
-### 2.1 开通
-1. 打开 <https://fc.console.aliyun.com/>
-2. 首次进入会提示开通「函数计算 FC」，点开通（选**按量付费**，不会扣钱，免费额度内）
+  async function diagnose(ep) {
+    // 用 no-cors 探一次：能连上但读不到内容 = 跨域头被去掉了；连不上 = 网络/地址问题
+    try {
+      await fetch(ep + '/health', { mode: 'no-cors', cache: 'no-store' });
+      return '地址能连上，但浏览器被跨域挡住了（阿里云网关没把跨域头传出来）。这不是你操作的问题，我改后端。';
+    } catch {
+      return '地址完全连不上。先在浏览器地址栏直接打开「地址/health」看看能不能出 JSON。';
+    }
+  }
 
-### 2.2 创建函数
-1. 左侧「函数」→「创建函数」
-2. 选择 **「Web 函数」**（有的界面叫「使用示例创建」或「事件函数」，**优先选 Web 函数**）
-3. 基本信息：
-   - 函数名称：`nebula-ai-api`
-   - 运行环境：**Node.js 20**（没有 20 就选 Node.js 18）
-   - 内存：512 MB
-   - 超时时间：**120 秒**（生图很慢，必须调大，默认 60 秒会失败）
-4. 代码：选择「在线编辑」/「内置代码」，把 `server.js` 的**全部内容**粘进去
-   - 如果编辑器要求文件名，就用 `index.js`
-   - 如果有「启动命令」输入框，填：`node index.js`
+  $('check').onclick = async () => {
+    const ep = normalize($('endpoint').value);
+    if (!ep) { setStatus('请先填写后端地址。', 'err'); return; }
+    $('check').disabled = true;
+    setStatus('正在测试连接…');
+    try {
+      const r = await fetch(ep + '/health', { cache: 'no-store' });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error('后端返回 ' + r.status);
+      if (!data.ok) throw new Error('返回内容不像我们的后端');
+      remember(ep);
 
-### 2.3 配置环境变量（最关键，漏了就 503）
-在函数的「配置」→「环境变量」里新增三条：
+      const problems = [];
+      if (!data.aiConfigured) problems.push('没配置 AI 密钥（ZHIPU_API_KEY）');
+      if (!data.accessCodeConfigured) problems.push('没配置访问码（STUDIO_ACCESS_CODE）');
 
-| 变量名 | 值 |
-|---|---|
-| `ZHIPU_API_KEY` | 第 1 步复制的 Key |
-| `STUDIO_ACCESS_CODE` | 你自己定一个访问码，比如 `nebula-2026`（别用生日、别用 123456） |
-| `PORT` | `9000` |
+      if (problems.length) {
+        setStatus('连接成功，但服务端还缺：' + problems.join('、'), 'err');
+      } else {
+        setStatus('✅ 连接成功，服务端已就绪（聊天 ' + data.chatModel + '，生图 ' + data.imageModel + '）', 'ok');
+        remember(ep);
 
-### 2.4 部署并拿地址
-1. 点「部署代码」
-2. 等状态变绿
-3. 在「触发器」或「配置」页找 **公网访问地址 / 函数 URL**，形如：
-   `https://xxx-xxx-xxx.cn-hangzhou.fcapp.run`
-4. 复制这个地址
+        // 如果填了访问码，再真的调一次模型，确认 Key 可用
+        const code = $('access').value;
+        if (code) {
+          setStatus('连接成功，正在验证 Key 是否可用…', 'ok');
+          try {
+            const t = await fetch(ep + '/self-test', {
+              headers: { 'X-Studio-Code': code },
+              cache: 'no-store',
+            });
+            const td = await t.json().catch(() => ({}));
+            if (t.ok && td.ok) {
+              setStatus('✅ 全部就绪：后端通了，Key 也通了（' + td.model + ' 回复“' + (td.sample || '').trim() + '”）', 'ok');
+            } else {
+              setStatus('❌ 后端通了，但 Key 有问题：' + (td.detail || td.error || ('返回 ' + t.status)), 'err');
+            }
+          } catch (e) {
+            setStatus('❌ 自检请求失败：' + (e.message || '未知错误'), 'err');
+          }
+        }
+      }
+    } catch (e) {
+      setStatus('❌ 连不上。' + await diagnose(ep), 'err');
+    } finally {
+      $('check').disabled = false;
+    }
+  };
 
-### 2.5 立刻验证（不要跳过）
-在浏览器地址栏直接打开：`你复制的地址 + /health`
+  $('gen').onclick = async () => {
+    const ep = normalize($('endpoint').value);
+    const code = $('access').value;
+    const prompt = $('prompt').value.trim();
 
-应该看到类似：
+    if (!ep) { setStatus('请先填写后端地址。', 'err'); return; }
+    if (!code) { setStatus('请填写访问码。', 'err'); return; }
+    if (!prompt) { setStatus('请先写一句图片描述。', 'err'); return; }
 
-```json
-{"ok":true,"service":"nebula-ai-api","aiConfigured":true,"accessCodeConfigured":true,
- "chatModel":"glm-4-flash","imageModel":"cogview-3-flash","dailyLimit":40}
-```
+    $('gen').disabled = true;
+    $('save').style.display = 'none';
+    $('result').replaceChildren();
+    setStatus('正在生成，通常 10~40 秒，请不要关闭页面…');
 
-- `aiConfigured: true` → Key 配对了
-- `accessCodeConfigured: true` → 访问码配对了
-- 两个都是 `false` → 环境变量没生效，回去 2.3 检查（改完要**重新部署**）
+    const started = Date.now();
+    try {
+      const r = await fetch(ep + '/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Studio-Code': code },
+        body: JSON.stringify({ prompt, ratio: $('ratio').value }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || ('请求失败 ' + r.status));
+      if (!data.image) throw new Error('没有收到图片');
 
-> 想更彻底地确认 Key 能不能用，浏览器打开：`你的地址/self-test` 并带上访问码比较麻烦，
-> 直接在 `gen.html` 的「🔍 测试连接」里做就行——它会真的调一次模型，把智谱的原始报错显示出来。
+      const img = new Image();
+      img.alt = 'AI 生成的图片：' + prompt.slice(0, 40);
+      img.src = data.image;
+      $('result').append(img);
+      $('save').href = data.image;
+      $('save').style.display = 'block';
+      remember(ep);
+      setStatus('✅ 生成成功（' + Math.round((Date.now() - started) / 1000) + ' 秒，' + (data.size || '') + '）。长按图片或点下方按钮保存。', 'ok');
+    } catch (e) {
+      const raw = e.message || '';
+      if (/Failed to fetch|NetworkError|Load failed/i.test(raw)) {
+        setStatus('❌ ' + await diagnose(ep), 'err');
+      } else {
+        setStatus('❌ ' + (raw || '生成失败'), 'err');
+      }
+    } finally {
+      $('gen').disabled = false;
+    }
+  };
 
----
-
-## 第 3 步：把新页面加到 GitHub（约 3 分钟）
-
-1. 打开 <https://github.com/chenguanxi-655/nebula-ai-store>
-2. 点右上「Add file」→「Create new file」
-3. 文件名填：`gen.html`
-4. 把 `gen.html` 的全部内容粘进大文本框
-5. 拉到最下面点「Commit changes」
-
-等 1~2 分钟，打开：
-<https://chenguanxi-655.github.io/nebula-ai-store/gen.html>
-
----
-
-## 第 4 步：验证（3 次点击）
-
-1. 「后端地址」粘贴第 2.4 步的地址 → 点 **🔍 测试连接**
-   - 显示 `✅ 连接成功，服务端已就绪` → 后端通了
-   - 显示 `❌ 连不上` → 地址错了，或函数没启动
-   - 显示 `连接成功，但服务端还缺：…` → 环境变量没配好
-2. 填访问码
-3. 写一句描述：`一只穿宇航服的橘猫站在月球上`
-4. 点「✨ 开始生成」，等 10~40 秒
-
----
-
-## 常见错误对照表
-
-| 你看到的 | 原因 | 怎么办 |
-|---|---|---|
-| `Failed to fetch` | 根本连不上后端 | 检查地址是否以 `https://` 结尾、是否多了斜杠 |
-| `访问码不正确` | 访问码填错 | 和 `STUDIO_ACCESS_CODE` 逐字对齐 |
-| `服务端还没配置 AI 密钥` | 环境变量没生效 | 重新部署一次 |
-| `AI 服务返回错误：令牌已过期或验证不正确` | Key 复制错了/有空格 | 重新复制，注意别带空格 |
-| `AI 服务响应超时` | 函数超时时间太短 | 调到 120 秒 |
-| `今天的使用次数已用完` | 触发每日限流（默认 40 次） | 正常，明天恢复 |
-| `连接成功，但服务端还缺…` | 少配了环境变量 | 看 `/health` 里哪项是 false |
-
----
-
-## 安全清单（必须做到）
-
-- [ ] Key 只存在服务器环境变量里，从未出现在 GitHub
-- [ ] 访问码只告诉信任的人，公开场合不提
-- [ ] 网吧电脑用完：关浏览器、不留密码；访问码输入框刷新即清空
-- [ ] 不在页面里写 `ZHIPU_API_KEY`（前端永远不该出现 Key）
-- [ ] 阿里云不升级付费套餐（免费额度够测试）
-
----
-
-## 成本说明（诚实版，已更正）
-
-| 项目 | 费用 |
-|---|---|
-| 智谱 CogView-3-Flash 生图 | **免费** |
-| 智谱 GLM-4-Flash 聊天 | **免费** |
-| GitHub Pages 前端 | **0 元** |
-| 阿里云函数计算 | **新用户前 3 个月有免费额度；之后按量计费** |
-
-⚠️ **重要更正**：函数计算不是"永久免费"。阿里云和腾讯云目前的政策都是**新用户前 3 个月**给免费额度（每月 100 万次调用 / 15 万 CU 之类），3 个月后按实际用量收费。
-
-按你这个测试强度（每天几十次调用），3 个月后大概**每月几毛到几元**，不会失控。但要主动做两件事：
-
-1. 阿里云控制台 → 费用中心 → **设置预算提醒**（比如 10 元），超过就发短信
-2. 别开"自动续费"，别升级套餐
-
-**适合验证产品，不适合免费对外开放给大量用户。** 真有用户了，再算正经的服务器账。
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  }
+})();
+</script>
+</body>
+</html>
