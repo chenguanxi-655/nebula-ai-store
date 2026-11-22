@@ -23,5 +23,5 @@ jobs:
         run: node --test backend/server.test.mjs
       - name: Build web
         run: |
-          npm ci
+          npm install --ignore-scripts --no-audit --no-fund
           npm run build:web
