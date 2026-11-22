@@ -18,9 +18,11 @@ jobs:
         run: |
           node --check backend/server.mjs
           node --check backend/admin.mjs
+          node --check backend/fc-admin-adapter.cjs
+          node --check backend/fc-admin-adapter.test.mjs
           node --check backend/server.test.mjs
       - name: Integration tests
-        run: node --test backend/server.test.mjs
+        run: node --test backend/*.test.mjs
       - name: Build web
         run: |
           npm install --ignore-scripts --no-audit --no-fund
