@@ -20,6 +20,8 @@ jobs:
           node --check backend/admin.mjs
           node --check backend/fc-admin-adapter.cjs
           node --check backend/fc-admin-adapter.test.mjs
+          node --check backend/fc-deploy/index.js
+          node --check backend/fc-deploy/build.mjs
           node --check backend/server.test.mjs
       - name: Integration tests
         run: node --test backend/*.test.mjs
