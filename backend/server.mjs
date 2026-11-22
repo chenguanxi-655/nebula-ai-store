@@ -2,6 +2,7 @@
 // Run: ZHIPU_API_KEY=... STUDIO_ACCESS_CODE=... node backend/server.mjs
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { adminHandler, recordEvent } from './admin.mjs';
 
 const PORT = Number(process.env.PORT || 9000);
 const KEY = process.env.ZHIPU_API_KEY || '';
@@ -17,7 +18,7 @@ const templates = Object.freeze([
   {id:'video-trend',title:'热门图生视频',type:'video',status:'coming_soon',provider:null,model:null,credits:null}
 ]);
 function send(res,status,data,origin=''){
-  res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':origin===ORIGIN?ORIGIN:'','Vary':'Origin','Access-Control-Allow-Headers':'Content-Type, X-Studio-Code','Access-Control-Allow-Methods':'GET,POST,OPTIONS'});
+  res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':origin===ORIGIN?ORIGIN:'','Vary':'Origin','Access-Control-Allow-Headers':'Content-Type, X-Studio-Code, X-Admin-Code','Access-Control-Allow-Methods':'GET,POST,OPTIONS'});
   res.end(JSON.stringify(data));
 }
 async function body(req){
@@ -50,6 +51,12 @@ createServer(async(req,res)=>{
   if(origin && origin!==ORIGIN)return reply(403,{error:'Origin not allowed'});
   if(path==='/health'&&req.method==='GET')return reply(200,{ok:true,service:'nebula-ai-gateway',imageConfigured:Boolean(KEY),authConfigured:Boolean(ACCESS)});
   if(path==='/api/v1/templates'&&req.method==='GET')return reply(200,{items:templates});
+  if(path.startsWith('/api/admin/')){
+    let input=null;
+    if(req.method==='POST'){try{input=await body(req)}catch(e){return reply(400,{error:e.message})}}
+    const result=adminHandler(req,path,input);
+    return reply(result.status,result.data);
+  }
   if(!authorized(req))return reply(401,{error:'Unauthorized'});
   if(path==='/api/v1/tasks'&&req.method==='POST'){
     let input;try{input=await body(req)}catch(e){return reply(400,{error:e.message})}
@@ -63,8 +70,9 @@ createServer(async(req,res)=>{
     counts.set(k,used+1);
     const id=randomUUID(),task={id,templateId:template.id,status:'processing',createdAt:new Date().toISOString()};
     tasks.set(id,task);
+    recordEvent({taskId:id,model:template.model,provider:template.provider,status:'submitted'});
     // Run async; client polls task endpoint. No automatic retries to avoid surprise spend.
-    void createImage(prompt).then(url=>{task.status='succeeded';task.outputUrl=url}).catch(()=>{task.status='failed';task.error='Image generation failed'}); 
+    void createImage(prompt).then(url=>{task.status='succeeded';task.outputUrl=url;recordEvent({taskId:id,model:template.model,provider:template.provider,status:'succeeded'});}).catch(()=>{task.status='failed';task.error='Image generation failed';recordEvent({taskId:id,model:template.model,provider:template.provider,status:'failed'});}); 
     return reply(202,{task});
   }
   const match=path.match(/^\/api\/v1\/tasks\/([a-f0-9-]{36})$/);
