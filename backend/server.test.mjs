@@ -25,5 +25,5 @@ test('Nebula API integration: safe defaults and admin reads',async()=>{
   r=await request('/api/v1/tasks',{'X-Studio-Code':'local-studio-test-secret','Content-Type':'application/json'},{method:'POST',body:JSON.stringify({templateId:'poster',prompt:''})});assert.equal(r.status,400);
   r=await request('/api/admin/models',{'X-Admin-Code':'local-admin-test-secret',Origin:'https://untrusted.example'});assert.equal(r.status,403);
   r=await request('/api/admin/models',{'X-Admin-Code':'local-admin-test-secret',Origin:'http://localhost:5173'});assert.equal(r.status,200);assert.equal(r.headers.get('access-control-allow-origin'),'http://localhost:5173');
- }finally{child.kill();await once(child,'exit').catch(()=>{})}
+ }finally{child.kill();if(child.exitCode===null && child.signalCode===null)await Promise.race([once(child,'exit').catch(()=>{}),delay(1500)])}
 });
