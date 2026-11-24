@@ -1,0 +1,30 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nebula Console · API 联调</title><style>body{margin:0;background:#0c1020;color:#eef0ff;font:15px system-ui,-apple-system,sans-serif}main{max-width:980px;margin:auto;padding:30px 18px}h1{font-size:28px}.hint{color:#a9b1ca}.box{background:#181e32;border:1px solid #303950;border-radius:18px;padding:20px;margin:16px 0}label{display:block;margin:12px 0}input{display:block;box-sizing:border-box;width:100%;margin-top:8px;padding:12px;background:#0e1426;border:1px solid #424c68;border-radius:10px;color:white}button{padding:12px 18px;border:0;border-radius:10px;background:#7666ed;color:white;cursor:pointer;margin:8px 8px 8px 0}button:disabled{opacity:.5}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #303950;text-align:left;padding:12px 7px;font-size:13px}th{color:#adb6d1}#state{color:#a8b3cf;white-space:pre-wrap}#result{overflow:auto}a{color:#a9a1ff}</style><main><small>✦ NEBULA CONSOLE / DEVELOPMENT</small><h1>星云 API 联调控制台</h1><p class="hint">独立开发页面。仅查询已实现的管理 API，不写入密钥，不展示虚构账单。</p><div class="box"><h2>连接后端</h2><label>API 服务地址<input id="base" type="url" value="https://nebula-api-test-jzhuzmpvbd.cn-hangzhou.fcapp.run" placeholder="https://你的API服务域名" autocomplete="off"></label><label>管理员访问码（仅保存在当前页面内存）<input id="key" type="password" autocomplete="off" placeholder="ADMIN_ACCESS_CODE"></label><button id="health">检查公网健康状态</button><button id="connect">连接并读取</button><button id="clear">清除访问码</button><div id="state" role="status">尚未连接。请确认后端已部署此分支代码，并正确配置跨域来源。</div></div><div class="box"><h2>运行指标</h2><div id="metrics" class="hint">尚无真实数据</div></div><div class="box"><h2>供应商与模型</h2><div id="models" class="hint">等待连接</div></div><div class="box"><h2>虚拟模型</h2><div id="virtual" class="hint">等待连接</div></div><div class="box"><h2>最近调用事件</h2><div id="events" class="hint">等待连接</div></div><p class="hint">安全提示：开发阶段的管理员访问码不等于正式登录系统。请勿在公共电脑输入生产凭据；生产环境需要独立身份认证、HTTPS、持久化审计和成本对账。</p></main><script>
+const $=id=>document.getElementById(id);
+const base=$('base'),key=$('key'),state=$('state');
+$('clear').onclick=()=>{key.value='';state.textContent='访问码已从输入框清除。'};
+$('health').onclick=async()=>{const url=base.value.trim().replace(/\/$/,'');if(!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(url)){state.textContent='请填写有效的 HTTPS 地址';return}state.textContent='正在检查公网健康接口…';const c=new AbortController(),t=setTimeout(()=>c.abort(),10000);try{const r=await fetch(url+'/health',{signal:c.signal,cache:'no-store'});state.textContent=r.ok?'公网健康检查成功：HTTP '+r.status+'。这不代表管理员接口已通过跨域验证。':'公网健康检查失败：HTTP '+r.status}catch(e){state.textContent='健康检查无法读取：'+e.message+'。可能是网络或跨域限制。'}finally{clearTimeout(t)}};
+function table(headers,rows){const t=document.createElement('table'),head=t.createTHead().insertRow();headers.forEach(x=>{const th=document.createElement('th');th.textContent=x;head.append(th)});const body=t.createTBody();rows.forEach(r=>{const tr=body.insertRow();r.forEach(x=>{const td=tr.insertCell();td.textContent=String(x??'—')})});return t}
+function render(id,headers,rows){const el=$(id);el.replaceChildren(rows.length?table(headers,rows):document.createTextNode('暂无记录'))}
+$('connect').onclick=async()=>{
+ const url=base.value.trim().replace(/\/$/,'');
+ if(!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(url)){state.textContent='请输入有效的 HTTPS API 根地址（不要包含路径）';return}
+ if(!key.value){state.textContent='请输入管理员访问码';return}
+ $('connect').disabled=true;state.textContent='正在请求管理接口…';
+ try{
+  const paths=['overview','models','virtual-models','events'];
+  const data={};
+  for(const p of paths){
+   const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),12000);
+   try{const response=await fetch(url+'/api/admin/'+p,{headers:{'X-Admin-Code':key.value},signal:ctrl.signal,cache:'no-store'});const body=await response.json();if(!response.ok)throw Error(p+' HTTP '+response.status+': '+(body.error||'请求失败'));data[p]=body}
+   finally{clearTimeout(timer)}
+  }
+  const m=data.overview.metrics||{};
+  $('metrics').textContent='调用事件 '+(m.requests??'—')+' ｜ 成功 '+(m.success??'—')+' ｜ 失败 '+(m.failed??'—')+' ｜ 成本 '+(m.costCny===null?'尚未接入计费':'¥'+m.costCny);
+  render('models',['模型','供应商','类型','已配置'],(data.models.items||[]).map(x=>[x.name,x.provider,x.type,x.configured?'是':'否']));
+  render('virtual',['名称','底层模型','启用'],(data['virtual-models'].items||[]).map(x=>[x.name,x.baseModelId,x.enabled?'是':'否']));
+  render('events',['时间','任务','模型','状态'],(data.events.items||[]).map(x=>[x.at,x.taskId,x.model,x.status]));
+  state.textContent='连接成功 · 已读取真实 API 响应（数据可能仅保存在服务器内存中）';
+ }catch(e){state.textContent='连接失败：'+e.message+'。请检查部署版本、ADMIN_ACCESS_CODE 和 ALLOWED_ORIGIN；没有部署新后端时无法连接。'}
+ finally{$('connect').disabled=false}
+};
+</script>
